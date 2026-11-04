@@ -721,13 +721,29 @@ function renderSettings() {
   $('#share-btn').onclick = function () {
     if (!cfg) return;
     var link = location.origin + location.pathname + '#cfg=' + encodeURIComponent(btoa(JSON.stringify({ url: cfg.url, token: cfg.token })));
-    if (navigator.share) {
-      navigator.share({ title: 'Inventário da casa', text: 'Link de ligação do inventário (privado)', url: link }).catch(function () {});
-    } else if (navigator.clipboard) {
-      navigator.clipboard.writeText(link).then(function () { toast('Link copiado. Cola-o no outro dispositivo.'); }, function () { prompt('Copia este link:', link); });
-    } else {
-      prompt('Copia este link:', link);
+    var box = $('#share-box');
+    if (!box) {
+      box = document.createElement('div'); box.id = 'share-box'; box.className = 'section';
+      $('#share-btn').closest('.section').insertAdjacentElement('afterend', box);
     }
+    box.innerHTML = '<div class="field"><label>Link de ligação (privado)</label><input id="share-link" readonly></div>' +
+      '<div class="row" style="margin:10px 0 12px"><button type="button" class="btn primary" id="share-copy">Copiar</button>' +
+      (navigator.share ? '<button type="button" class="btn" id="share-native">Partilhar…</button>' : '') + '</div>';
+    var inp = $('#share-link'); inp.value = link;
+    function copyLink() {
+      inp.focus(); inp.select(); inp.setSelectionRange(0, link.length);
+      var done = false;
+      try { done = document.execCommand('copy'); } catch (e) {}
+      if (done) { toast('Link copiado. Cola-o no outro dispositivo.'); return; }
+      if (navigator.clipboard) navigator.clipboard.writeText(link).then(function () { toast('Link copiado. Cola-o no outro dispositivo.'); }, function () { toast('Seleciona o texto do link e copia-o.'); });
+      else toast('Seleciona o texto do link e copia-o.');
+    }
+    $('#share-copy').onclick = copyLink;
+    inp.onclick = function () { inp.select(); };
+    if ($('#share-native')) $('#share-native').onclick = function () {
+      navigator.share({ title: 'Inventário da casa', text: 'Link de ligação do inventário (privado)', url: link }).catch(function (e) { if (!e || e.name !== 'AbortError') copyLink(); });
+    };
+    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
   };
   $('#csv-btn').onclick = function () {
     busy('A criar CSV…');
