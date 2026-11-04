@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2f6f5e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Inventário">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<title>Inventário da casa</title>
+<style>
+  :root {
+    --bg: #f6f4ef;
+    --surface: #ffffff;
+    --surface-2: #efece5;
+    --text: #1f1d1a;
+    --muted: #6b665d;
+    --line: #e2ded5;
+    --accent: #2f6f5e;
+    --accent-ink: #ffffff;
+    --accent-soft: #e2efea;
+    --warn: #b7791f;
+    --warn-soft: #fbf0dc;
+    --danger: #b3412f;
+    --danger-soft: #f9e3df;
+    --ok: #2f6f5e;
+    --radius: 14px;
+    --shadow: 0 1px 2px rgba(0,0,0,.05), 0 4px 14px rgba(0,0,0,.05);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #151413; --surface: #1f1e1c; --surface-2: #2a2825; --text: #efece6; --muted: #a39d92;
+      --line: #35322e; --accent: #6fb79f; --accent-ink: #0f1f1a; --accent-soft: #223b34;
+      --warn: #e2a84a; --warn-soft: #3a2e17; --danger: #e5785f; --danger-soft: #3d221c; --ok: #6fb79f;
+      --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; }
+  body { -webkit-font-smoothing: antialiased; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  button, input, select, textarea { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .hidden { display: none !important; }
+
+  /* ── Cabeçalho ── */
+  header.top { position: sticky; top: 0; z-index: 5; background: var(--bg); padding: 14px 16px 10px; }
+  header.top h1 { margin: 0; font-size: 22px; letter-spacing: -.01em; }
+  header.top .sub { color: var(--muted); font-size: 14px; margin-top: 2px; }
+  .search { display: flex; align-items: center; gap: 8px; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 9px 12px; margin-top: 12px; }
+  .search input { flex: 1; border: 0; background: transparent; outline: none; min-width: 0; }
+  .search svg { width: 18px; height: 18px; color: var(--muted); flex: none; }
+  .chips { display: flex; gap: 8px; overflow-x: auto; padding: 10px 16px 4px; scrollbar-width: none; }
+  .chips::-webkit-scrollbar { display: none; }
+  .chip { flex: none; border: 1px solid var(--line); background: var(--surface); border-radius: 999px;
+    padding: 6px 12px; font-size: 14px; color: var(--muted); white-space: nowrap; }
+  .chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
+  /* ── Lista ── */
+  .list { padding: 8px 16px 0; display: flex; flex-direction: column; gap: 10px; }
+  .card { display: flex; gap: 12px; align-items: center; background: var(--surface); border-radius: var(--radius);
+    padding: 10px; box-shadow: var(--shadow); border: 0; text-align: left; width: 100%; }
+  .thumb { width: 64px; height: 64px; border-radius: 10px; background: var(--surface-2); flex: none;
+    object-fit: cover; display: flex; align-items: center; justify-content: center; color: var(--muted); overflow: hidden; }
+  .thumb svg { width: 26px; height: 26px; }
+  .card .main { flex: 1; min-width: 0; }
+  .card .name { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .card .meta { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+  .card .right { text-align: right; flex: none; }
+  .card .price { font-weight: 600; font-variant-numeric: tabular-nums; }
+  .badge { display: inline-block; font-size: 11px; padding: 2px 7px; border-radius: 999px; margin-top: 4px; font-weight: 600; }
+  .badge.ok { background: var(--accent-soft); color: var(--ok); }
+  .badge.warn { background: var(--warn-soft); color: var(--warn); }
+  .badge.bad { background: var(--danger-soft); color: var(--danger); }
+  .badge.muted { background: var(--surface-2); color: var(--muted); }
+  .empty { text-align: center; color: var(--muted); padding: 48px 24px; }
+  .empty strong { display: block; color: var(--text); font-size: 17px; margin-bottom: 6px; }
+
+  /* ── FAB e barra inferior ── */
+  .fab { position: fixed; right: 18px; bottom: calc(74px + env(safe-area-inset-bottom)); width: 56px; height: 56px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink); border: 0; box-shadow: 0 6px 18px rgba(0,0,0,.22); font-size: 30px; line-height: 1; z-index: 6; }
+  nav.tabs { position: fixed; left: 0; right: 0; bottom: 0; display: flex; background: var(--surface); border-top: 1px solid var(--line);
+    padding-bottom: env(safe-area-inset-bottom); z-index: 6; }
+  nav.tabs button { flex: 1; border: 0; background: transparent; padding: 10px 4px 8px; color: var(--muted); font-size: 12px;
+    display: flex; flex-direction: column; align-items: center; gap: 3px; }
+  nav.tabs button svg { width: 22px; height: 22px; }
+  nav.tabs button.on { color: var(--accent); }
+
+  /* ── Páginas secundárias ── */
+  .page { padding: 0 16px 24px; }
+  .bar { position: sticky; top: 0; z-index: 5; display: flex; align-items: center; gap: 8px; background: var(--bg); padding: 12px 0; }
+  .bar h2 { flex: 1; margin: 0; font-size: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .icon-btn { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--surface); color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center; box-shadow: var(--shadow); flex: none; }
+  .icon-btn svg { width: 20px; height: 20px; }
+  .btn { border: 0; border-radius: 12px; padding: 12px 16px; font-weight: 600; background: var(--surface-2); color: var(--text); }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.danger { background: var(--danger-soft); color: var(--danger); }
+  .btn.block { width: 100%; }
+  .btn:disabled { opacity: .55; cursor: default; }
+  .row { display: flex; gap: 10px; }
+  .row > * { flex: 1; }
+
+  .gallery { display: flex; gap: 10px; overflow-x: auto; scroll-snap-type: x mandatory; margin: 4px -16px 0; padding: 0 16px; scrollbar-width: none; }
+  .gallery::-webkit-scrollbar { display: none; }
+  .gallery .ph { flex: none; width: min(78vw, 320px); aspect-ratio: 4/3; border-radius: var(--radius); background: var(--surface-2);
+    scroll-snap-align: start; object-fit: cover; display: flex; align-items: center; justify-content: center; color: var(--muted); overflow: hidden; }
+  .gallery .ph img { width: 100%; height: 100%; object-fit: cover; }
+  .section { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 4px 14px; margin-top: 14px; }
+  .kv { display: flex; justify-content: space-between; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .kv:last-child { border-bottom: 0; }
+  .kv .k { color: var(--muted); font-size: 14px; flex: none; }
+  .kv .v { text-align: right; overflow-wrap: anywhere; }
+  .big-price { font-size: 28px; font-weight: 700; margin: 10px 0 0; font-variant-numeric: tabular-nums; }
+  .details { white-space: pre-wrap; color: var(--text); padding: 10px 0; }
+
+  /* ── Formulário ── */
+  .field { margin-top: 12px; }
+  .field label { display: block; font-size: 13px; color: var(--muted); margin-bottom: 5px; }
+  .field input, .field select, .field textarea { width: 100%; background: var(--surface); border: 1px solid var(--line);
+    border-radius: 12px; padding: 11px 12px; outline: none; }
+  .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--accent); }
+  .field textarea { min-height: 80px; resize: vertical; }
+  .field .hint { font-size: 12px; color: var(--muted); margin-top: 4px; }
+  .photo-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(84px, 1fr)); gap: 8px; margin-top: 8px; }
+  .photo-grid .p { position: relative; aspect-ratio: 1; border-radius: 10px; overflow: hidden; background: var(--surface-2); }
+  .photo-grid .p img { width: 100%; height: 100%; object-fit: cover; }
+  .photo-grid .p .x { position: absolute; top: 4px; right: 4px; width: 24px; height: 24px; border-radius: 50%; border: 0;
+    background: rgba(0,0,0,.6); color: #fff; font-size: 14px; line-height: 1; display: flex; align-items: center; justify-content: center; }
+  .photo-grid .add { aspect-ratio: 1; border-radius: 10px; border: 1.5px dashed var(--line); background: transparent; color: var(--muted);
+    display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; }
+  .photo-grid .add svg { width: 22px; height: 22px; }
+  .file-row { display: flex; align-items: center; gap: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; }
+  .file-row .n { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .file-row .rm { border: 0; background: transparent; color: var(--danger); font-weight: 600; }
+
+  /* ── Resumo / Definições ── */
+  .stat { background: var(--surface); border-radius: var(--radius); box-shadow: var(--shadow); padding: 14px; }
+  .stat .lbl { color: var(--muted); font-size: 13px; }
+  .stat .val { font-size: 26px; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 8px; }
+  h3 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .04em; }
+  .barrow { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; padding: 9px 0; border-bottom: 1px solid var(--line); align-items: center; }
+  .barrow:last-child { border-bottom: 0; }
+  .barrow .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .barrow .c { color: var(--muted); font-size: 13px; }
+  .barrow .v { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+  .barrow .track { grid-column: 1 / -1; height: 5px; background: var(--surface-2); border-radius: 3px; overflow: hidden; }
+  .barrow .track i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+  .list-edit { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--line); }
+  .list-edit:last-child { border-bottom: 0; }
+  .list-edit input { flex: 1; min-width: 0; background: transparent; border: 0; outline: none; padding: 6px 0; }
+  .list-edit .rm { border: 0; background: transparent; color: var(--danger); width: 32px; }
+  .link { color: var(--accent); font-weight: 600; text-decoration: none; }
+  p.note { color: var(--muted); font-size: 14px; }
+
+  /* ── Toast / loading ── */
+  .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(88px + env(safe-area-inset-bottom)); background: var(--text); color: var(--bg);
+    padding: 10px 16px; border-radius: 10px; font-size: 14px; z-index: 20; box-shadow: var(--shadow); max-width: 90vw; text-align: center; opacity: 0; transition: opacity .2s; pointer-events: none; }
+  .toast.show { opacity: 1; }
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.35); z-index: 15; display: flex; align-items: center; justify-content: center; }
+  .overlay .box { background: var(--surface); border-radius: 14px; padding: 18px 22px; min-width: 220px; text-align: center; box-shadow: var(--shadow); }
+  .spinner { width: 26px; height: 26px; border: 3px solid var(--line); border-top-color: var(--accent); border-radius: 50%; margin: 0 auto 10px; animation: spin .8s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .confirm .box { text-align: left; max-width: 340px; }
+  .confirm .actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 16px; }
+</style>
+</head>
+<body>
+
+<!-- ───────── Ligação ao script ───────── -->
+<div id="view-setup" class="page hidden">
+  <div class="bar"><h2>Ligar à tua Drive</h2></div>
+  <p class="note">Esta página guarda tudo na tua Google Drive através do teu script do Apps Script. Introduz o endereço da aplicação Web e o código de acesso que está no Code.gs. Ficam guardados só neste dispositivo.</p>
+  <form id="setup-form" autocomplete="off">
+    <div class="field"><label>URL da aplicação Web</label><input name="url" type="url" required placeholder="https://script.google.com/macros/s/…/exec" id="setup-url"></div>
+    <div class="field"><label>Código de acesso</label><input name="token" required placeholder="o valor de API_TOKEN no Code.gs" id="setup-token"></div>
+    <div class="field" style="margin-top:20px"><button type="submit" class="btn primary block" id="setup-btn">Ligar</button></div>
+    <div class="field hidden" id="setup-cancel-wrap"><button type="button" class="btn block" id="setup-cancel">Cancelar</button></div>
+  </form>
+</div>
+
+<!-- ───────── Lista ───────── -->
+<div id="view-list">
+  <header class="top">
+    <h1>Inventário da casa</h1>
+    <div class="sub" id="list-sub">A carregar…</div>
+    <div class="search">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input id="q" type="search" placeholder="Procurar artigo, marca, modelo, nº de série…" autocomplete="off">
+    </div>
+  </header>
+  <div class="chips" id="chips-room"></div>
+  <div class="chips" id="chips-cat" style="padding-top:2px"></div>
+  <div class="list" id="list"></div>
+  <button class="fab" id="fab" aria-label="Adicionar artigo">+</button>
+</div>
+
+<!-- ───────── Detalhe ───────── -->
+<div id="view-item" class="page hidden">
+  <div class="bar">
+    <button class="icon-btn" data-back aria-label="Voltar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m15 6-6 6 6 6"/></svg></button>
+    <h2 id="item-title"></h2>
+    <button class="icon-btn" id="item-edit" aria-label="Editar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4l10-10-4-4L4 16v4z"/><path d="m13 7 4 4"/></svg></button>
+  </div>
+  <div id="item-body"></div>
+</div>
+
+<!-- ───────── Formulário ───────── -->
+<div id="view-form" class="page hidden">
+  <div class="bar">
+    <button class="icon-btn" data-back aria-label="Cancelar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 6l12 12M18 6 6 18"/></svg></button>
+    <h2 id="form-title">Novo artigo</h2>
+  </div>
+  <form id="form" autocomplete="off">
+    <div class="field"><label>Artigo *</label><input name="name" required placeholder="Ex.: Frigorífico, Sofá, Televisão"></div>
+    <div class="row">
+      <div class="field"><label>Divisão</label><select name="room" id="sel-room"></select><input name="roomNew" class="hidden" style="margin-top:6px" placeholder="Nome da nova divisão"></div>
+      <div class="field"><label>Categoria</label><select name="category" id="sel-cat"></select><input name="categoryNew" class="hidden" style="margin-top:6px" placeholder="Nome da nova categoria"></div>
+    </div>
+    <div class="field"><label>Detalhes</label><textarea name="details" placeholder="Cor, dimensões, estado, acessórios, observações…"></textarea></div>
+    <div class="row">
+      <div class="field"><label>Marca</label><input name="brand"></div>
+      <div class="field"><label>Modelo</label><input name="model"></div>
+    </div>
+    <div class="field"><label>Nº de série</label><input name="serial"></div>
+    <div class="row">
+      <div class="field"><label>Data de compra</label><input name="purchaseDate" type="date"></div>
+      <div class="field"><label>Valor (€)</label><input name="price" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00"></div>
+    </div>
+    <div class="row">
+      <div class="field"><label>Garantia (meses)</label><input name="warrantyMonths" type="number" inputmode="numeric" min="0" step="1" value="36"><div class="hint">Em Portugal, bens novos têm 3 anos de garantia.</div></div>
+      <div class="field"><label>Loja</label><input name="store" placeholder="Onde compraste"></div>
+    </div>
+
+    <div class="field">
+      <label>Fatura</label>
+      <div id="invoice-box"></div>
+      <input id="invoice-input" type="file" accept="application/pdf,image/*" class="hidden">
+    </div>
+
+    <div class="field">
+      <label>Fotos</label>
+      <div class="photo-grid" id="photo-grid"></div>
+      <input id="photo-input" type="file" accept="image/*" multiple class="hidden">
+      <div class="hint">As fotos são reduzidas para poupar espaço na Drive.</div>
+    </div>
+
+    <div class="field" style="margin-top:20px">
+      <button type="submit" class="btn primary block" id="save-btn">Guardar</button>
+    </div>
+    <div class="field" id="delete-wrap">
+      <button type="button" class="btn danger block" id="delete-btn">Apagar artigo</button>
+    </div>
+  </form>
+</div>
+
+<!-- ───────── Resumo ───────── -->
+<div id="view-summary" class="page hidden">
+  <div class="bar"><h2>Resumo</h2></div>
+  <div id="summary-body"></div>
+</div>
+
+<!-- ───────── Definições ───────── -->
+<div id="view-settings" class="page hidden">
+  <div class="bar"><h2>Definições</h2></div>
+  <div id="settings-body"></div>
+</div>
+
+<nav class="tabs">
+  <button data-tab="list" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10"/></svg>Artigos</button>
+  <button data-tab="summary"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg>Resumo</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>Definições</button>
+</nav>
+
+<div class="toast" id="toast"></div>
+<div class="overlay hidden" id="busy"><div class="box"><div class="spinner"></div><div id="busy-text">A guardar…</div></div></div>
+
+<script>
+/* ═══════════════ Estado ═══════════════ */
+var state = { data: null, filterRoom: '', filterCat: '', q: '', view: 'list', current: null, fileCache: {} };
+var pending = { photos: [], removedPhotos: [], invoice: null, removeInvoice: false };
+var PLACEHOLDER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3 16 5-5 4 4 3-3 6 6"/><circle cx="16" cy="9" r="1.5"/></svg>';
+var fmtEUR = new Intl.NumberFormat('pt-PT', { style: 'currency', currency: 'EUR' });
+
+/* ═══════════════ Chamadas ao script (Apps Script → Drive) ═══════════════ */
+var cfg = null;
+try { cfg = JSON.parse(localStorage.getItem('inv-cfg') || 'null'); } catch (e) {}
+
+function api(fn) {
+  var args = Array.prototype.slice.call(arguments, 1);
+  if (!cfg || !cfg.url) return Promise.reject(new Error('Ligação não configurada.'));
+  return fetch(cfg.url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },   // text/plain evita o preflight CORS que o Apps Script não suporta
+    body: JSON.stringify({ token: cfg.token, fn: fn, args: args })
+  }).then(function (r) {
+    return r.text().then(function (t) {
+      var j; try { j = JSON.parse(t); } catch (e) { throw new Error('Resposta inesperada do script (verifica o URL e se a implementação está com acesso "Qualquer pessoa").'); }
+      if (j.error) throw new Error(j.error);
+      return j.result;
+    });
+  }).catch(function (e) {
+    if (e instanceof TypeError) throw new Error('Sem ligação ao script. Verifica a internet e o URL.');
+    throw e;
+  });
+}
+
+/* ═══════════════ Utilidades ═══════════════ */
+function $(s, el) { return (el || document).querySelector(s); }
+function $$(s, el) { return Array.prototype.slice.call((el || document).querySelectorAll(s)); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+function money(v) { return (v === '' || v == null || isNaN(v)) ? '—' : fmtEUR.format(Number(v)); }
+function fmtDate(iso) { if (!iso) return '—'; var m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso); return m ? m[3] + '/' + m[2] + '/' + m[1] : iso; }
+function toast(msg) { var t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(function () { t.classList.remove('show'); }, 2600); }
+function busy(msg) { if (msg === false) { $('#busy').classList.add('hidden'); } else { $('#busy-text').textContent = msg; $('#busy').classList.remove('hidden'); } }
+function errMsg(e) { return (e && e.message) ? e.message : String(e); }
+function confirmDlg(title, text, okLabel) {
+  return new Promise(function (resolve) {
+    var o = document.createElement('div'); o.className = 'overlay confirm';
+    o.innerHTML = '<div class="box"><strong>' + esc(title) + '</strong><p class="note">' + esc(text) + '</p><div class="actions"><button class="btn" data-no>Cancelar</button><button class="btn danger" data-yes>' + esc(okLabel || 'Confirmar') + '</button></div></div>';
+    o.addEventListener('click', function (ev) { if (ev.target.hasAttribute('data-yes')) { o.remove(); resolve(true); } else if (ev.target.hasAttribute('data-no') || ev.target === o) { o.remove(); resolve(false); } });
+    document.body.appendChild(o);
+  });
+}
+
+function warrantyInfo(it) {
+  if (!it.purchaseDate || it.warrantyMonths === '' || it.warrantyMonths == null) return { cls: 'muted', label: 'Sem garantia registada', end: null, days: null };
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(it.purchaseDate); if (!m) return { cls: 'muted', label: '—', end: null };
+  var end = new Date(+m[1], +m[2] - 1 + Number(it.warrantyMonths), +m[3]);
+  var today = new Date(); today.setHours(0, 0, 0, 0);
+  var days = Math.round((end - today) / 86400000);
+  var endIso = end.getFullYear() + '-' + String(end.getMonth() + 1).padStart(2, '0') + '-' + String(end.getDate()).padStart(2, '0');
+  if (days < 0) return { cls: 'bad', label: 'Garantia expirada', end: endIso, days: days };
+  if (days <= 60) return { cls: 'warn', label: 'Garantia acaba em ' + days + ' dia' + (days === 1 ? '' : 's'), end: endIso, days: days };
+  return { cls: 'ok', label: 'Em garantia até ' + fmtDate(endIso), end: endIso, days: days };
+}
+
+/* ═══════════════ Navegação ═══════════════ */
+function show(view) {
+  ['setup', 'list', 'item', 'form', 'summary', 'settings'].forEach(function (v) { $('#view-' + v).classList.toggle('hidden', v !== view); });
+  $$('nav.tabs button').forEach(function (b) { b.classList.toggle('on', b.dataset.tab === (view === 'item' || view === 'form' ? 'list' : view)); });
+  $('#fab').classList.toggle('hidden', view !== 'list');
+  document.querySelector('nav.tabs').classList.toggle('hidden', view === 'form' || view === 'setup');
+  state.view = view;
+  window.scrollTo(0, 0);
+  if (view === 'summary') renderSummary();
+  if (view === 'settings') renderSettings();
+}
+$$('nav.tabs button').forEach(function (b) { b.addEventListener('click', function () { show(b.dataset.tab); }); });
+$$('[data-back]').forEach(function (b) { b.addEventListener('click', function () {
+  if (state.view === 'form' && state.current) show('item'); else show('list');
+}); });
+
+/* ═══════════════ Lista ═══════════════ */
+function filteredItems() {
+  var q = state.q.trim().toLowerCase();
+  return state.data.items.filter(function (it) {
+    if (state.filterRoom && it.room !== state.filterRoom) return false;
+    if (state.filterCat && it.category !== state.filterCat) return false;
+    if (!q) return true;
+    return [it.name, it.details, it.brand, it.model, it.serial, it.store, it.room, it.category].join(' ').toLowerCase().indexOf(q) >= 0;
+  }).sort(function (a, b) { return String(a.name).localeCompare(String(b.name), 'pt'); });
+}
+
+function renderChips() {
+  var rooms = state.data.rooms, cats = state.data.categories;
+  function chips(el, list, key, all) {
+    var sel = state[key];
+    el.innerHTML = '<button class="chip' + (!sel ? ' on' : '') + '" data-v="">' + all + '</button>' +
+      list.map(function (r) { return '<button class="chip' + (sel === r ? ' on' : '') + '" data-v="' + esc(r) + '">' + esc(r) + '</button>'; }).join('');
+    $$('.chip', el).forEach(function (c) { c.addEventListener('click', function () { state[key] = c.dataset.v; renderList(); }); });
+  }
+  chips($('#chips-room'), rooms, 'filterRoom', 'Todas as divisões');
+  chips($('#chips-cat'), cats, 'filterCat', 'Todas as categorias');
+}
+
+function renderList() {
+  renderChips();
+  var items = filteredItems();
+  var total = state.data.items.reduce(function (s, it) { return s + (Number(it.price) || 0); }, 0);
+  $('#list-sub').textContent = state.data.items.length + ' artigo' + (state.data.items.length === 1 ? '' : 's') + ' · ' + money(total);
+  var el = $('#list');
+  if (!state.data.items.length) {
+    el.innerHTML = '<div class="empty"><strong>Ainda não há artigos</strong>Toca em + para registar o primeiro.</div>'; return;
+  }
+  if (!items.length) { el.innerHTML = '<div class="empty">Nenhum artigo corresponde à pesquisa.</div>'; return; }
+  el.innerHTML = items.map(function (it) {
+    var w = warrantyInfo(it);
+    var thumb = it.thumb ? '<img class="thumb" src="' + it.thumb + '" alt="">' : '<div class="thumb">' + PLACEHOLDER + '</div>';
+    var meta = [it.room, it.category, [it.brand, it.model].filter(Boolean).join(' ')].filter(Boolean).join(' · ');
+    return '<button class="card" data-id="' + esc(it.id) + '">' + thumb +
+      '<div class="main"><div class="name">' + esc(it.name) + '</div><div class="meta">' + esc(meta || 'Sem localização') + '</div>' +
+      (w.cls !== 'muted' ? '<span class="badge ' + w.cls + '">' + esc(w.label) + '</span>' : '') + '</div>' +
+      '<div class="right"><div class="price">' + money(it.price) + '</div>' + (it.invoice ? '<span class="badge muted">Fatura</span>' : '') + '</div></button>';
+  }).join('');
+  $$('.card', el).forEach(function (c) { c.addEventListener('click', function () { openItem(c.dataset.id); }); });
+}
+$('#q').addEventListener('input', function (e) { state.q = e.target.value; renderList(); });
+
+/* ═══════════════ Detalhe ═══════════════ */
+function findItem(id) { return state.data.items.filter(function (i) { return i.id === id; })[0] || null; }
+
+function openItem(id) {
+  var it = findItem(id); if (!it) return;
+  state.current = it;
+  $('#item-title').textContent = it.name;
+  var w = warrantyInfo(it);
+  var photos = it.photos || [];
+  var gal = photos.length ? '<div class="gallery">' + photos.map(function (p) {
+    return '<div class="ph" data-file="' + esc(p.id) + '">' + PLACEHOLDER + '</div>';
+  }).join('') + '</div>' : (it.thumb ? '<div class="gallery"><div class="ph"><img src="' + it.thumb + '"></div></div>' : '');
+  var rows = [
+    ['Divisão', it.room], ['Categoria', it.category], ['Marca', it.brand], ['Modelo', it.model], ['Nº de série', it.serial],
+    ['Data de compra', it.purchaseDate ? fmtDate(it.purchaseDate) : ''], ['Loja', it.store],
+    ['Garantia', it.warrantyMonths != null && it.warrantyMonths !== '' ? it.warrantyMonths + ' meses' + (w.end ? ' · até ' + fmtDate(w.end) : '') : '']
+  ].filter(function (r) { return r[1]; });
+  var invoice = it.invoice ? '<a class="btn block" style="display:block;text-align:center;text-decoration:none;margin-top:14px" target="_blank" rel="noopener" href="https://drive.google.com/file/d/' + esc(it.invoice.id) + '/view">Abrir fatura (' + esc(it.invoice.name) + ')</a>' :
+    '<p class="note" style="margin-top:14px">Sem fatura associada.</p>';
+  $('#item-body').innerHTML = gal +
+    '<div class="big-price">' + money(it.price) + '</div>' +
+    '<span class="badge ' + w.cls + '">' + esc(w.label) + '</span>' +
+    (it.details ? '<div class="section"><div class="details">' + esc(it.details) + '</div></div>' : '') +
+    '<div class="section">' + rows.map(function (r) { return '<div class="kv"><span class="k">' + r[0] + '</span><span class="v">' + esc(r[1]) + '</span></div>'; }).join('') + '</div>' +
+    invoice;
+  show('item');
+  loadImages($$('.ph[data-file]'));
+}
+$('#item-edit').addEventListener('click', function () { openForm(state.current); });
+
+/* Carrega as fotos de uma vista num único pedido (as que já estão em cache aparecem logo). */
+function loadImages(containers) {
+  var missing = [];
+  containers.forEach(function (c) {
+    var id = c.dataset.file;
+    if (state.fileCache[id]) c.innerHTML = '<img src="' + state.fileCache[id] + '">'; else missing.push(id);
+  });
+  if (!missing.length) return;
+  api('getFilesData', missing).then(function (map) {
+    containers.forEach(function (c) {
+      var id = c.dataset.file;
+      if (map[id]) { state.fileCache[id] = map[id]; if (c.isConnected) c.innerHTML = '<img src="' + map[id] + '">'; }
+      else if (!state.fileCache[id] && c.isConnected) c.innerHTML = '<span style="font-size:12px;padding:8px">Não foi possível carregar</span>';
+    });
+  }).catch(function () { containers.forEach(function (c) { if (!state.fileCache[c.dataset.file]) c.innerHTML = '<span style="font-size:12px;padding:8px">Não foi possível carregar</span>'; }); });
+}
+
+/* ═══════════════ Formulário ═══════════════ */
+function fillSelect(sel, list, value) {
+  sel.innerHTML = '<option value="">—</option>' + list.map(function (r) { return '<option' + (r === value ? ' selected' : '') + '>' + esc(r) + '</option>'; }).join('') + '<option value="__new">+ Nova…</option>';
+  var extra = sel.nextElementSibling;
+  extra.value = ''; extra.classList.add('hidden');
+  sel.onchange = function () {
+    var isNew = sel.value === '__new';
+    extra.classList.toggle('hidden', !isNew);
+    if (isNew) extra.focus();
+  };
+}
+function selValue(f, name) {
+  var v = f.elements[name].value;
+  if (v === '__new') v = f.elements[name + 'New'].value.trim();
+  return v;
+}
+
+function openForm(it) {
+  var f = $('#form');
+  f.reset();
+  pending = { photos: [], removedPhotos: [], invoice: null, removeInvoice: false };
+  state.editing = it ? JSON.parse(JSON.stringify(it)) : null;
+  $('#form-title').textContent = it ? 'Editar artigo' : 'Novo artigo';
+  $('#delete-wrap').classList.toggle('hidden', !it);
+  fillSelect($('#sel-room'), state.data.rooms, it ? it.room : state.filterRoom);
+  fillSelect($('#sel-cat'), state.data.categories, it ? it.category : state.filterCat);
+  ['name', 'details', 'brand', 'model', 'serial', 'purchaseDate', 'price', 'store'].forEach(function (k) { f.elements[k].value = it && it[k] != null ? it[k] : ''; });
+  f.elements.warrantyMonths.value = it ? (it.warrantyMonths == null ? '' : it.warrantyMonths) : 36;
+  renderInvoiceBox();
+  renderPhotoGrid();
+  show('form');
+}
+
+function renderInvoiceBox() {
+  var box = $('#invoice-box');
+  var cur = state.editing && state.editing.invoice && !pending.removeInvoice ? state.editing.invoice : null;
+  if (pending.invoice) {
+    box.innerHTML = '<div class="file-row"><span class="n">' + esc(pending.invoice.name) + '</span><span class="badge ok">nova</span><button type="button" class="rm">Remover</button></div>';
+    $('.rm', box).onclick = function () { pending.invoice = null; renderInvoiceBox(); };
+  } else if (cur) {
+    box.innerHTML = '<div class="file-row"><span class="n">' + esc(cur.name) + '</span><button type="button" class="rm">Remover</button></div>';
+    $('.rm', box).onclick = function () { pending.removeInvoice = true; renderInvoiceBox(); };
+  } else {
+    box.innerHTML = '<button type="button" class="btn block" id="invoice-pick">Anexar fatura (PDF ou foto)</button>';
+    $('#invoice-pick').onclick = function () { $('#invoice-input').click(); };
+  }
+}
+$('#invoice-input').addEventListener('change', function (e) {
+  var file = e.target.files[0]; e.target.value = '';
+  if (!file) return;
+  if (file.type.indexOf('image/') === 0) {
+    resizeImage(file, 2000, 0.85).then(function (r) { pending.invoice = { name: file.name.replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', base64: r.base64 }; renderInvoiceBox(); });
+  } else {
+    if (file.size > 10 * 1024 * 1024) { toast('A fatura é demasiado grande (máx. 10 MB).'); return; }
+    readBase64(file).then(function (b64) { pending.invoice = { name: file.name, mime: file.type || 'application/pdf', base64: b64 }; renderInvoiceBox(); });
+  }
+});
+
+function renderPhotoGrid() {
+  var g = $('#photo-grid');
+  var existing = (state.editing && state.editing.photos || []).filter(function (p) { return pending.removedPhotos.indexOf(p.id) < 0; });
+  g.innerHTML = existing.map(function (p) {
+    var src = state.fileCache[p.id] || '';
+    return '<div class="p" data-file="' + esc(p.id) + '">' + (src ? '<img src="' + src + '">' : '') + '<button type="button" class="x" data-rm="' + esc(p.id) + '">×</button></div>';
+  }).join('') + pending.photos.map(function (p, i) {
+    return '<div class="p"><img src="' + p.preview + '"><button type="button" class="x" data-rmp="' + i + '">×</button></div>';
+  }).join('') + '<button type="button" class="add" id="photo-add"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>Adicionar</button>';
+  $('#photo-add').onclick = function () { $('#photo-input').click(); };
+  $$('[data-rm]', g).forEach(function (b) { b.onclick = function () { pending.removedPhotos.push(b.dataset.rm); renderPhotoGrid(); }; });
+  $$('[data-rmp]', g).forEach(function (b) { b.onclick = function () { pending.photos.splice(+b.dataset.rmp, 1); renderPhotoGrid(); }; });
+  var todo = $$('.p[data-file]', g).filter(function (p) { return !$('img', p); });
+  if (todo.length) {
+    api('getFilesData', todo.map(function (p) { return p.dataset.file; })).then(function (map) {
+      todo.forEach(function (p) { var d = map[p.dataset.file]; if (d) { state.fileCache[p.dataset.file] = d; if (p.isConnected && !$('img', p)) p.insertAdjacentHTML('afterbegin', '<img src="' + d + '">'); } });
+    }).catch(function () {});
+  }
+}
+$('#photo-input').addEventListener('change', function (e) {
+  var files = Array.prototype.slice.call(e.target.files); e.target.value = '';
+  if (!files.length) return;
+  busy('A preparar fotos…');
+  var chain = Promise.resolve();
+  files.forEach(function (file) {
+    chain = chain.then(function () {
+      return resizeImage(file, 1600, 0.82).then(function (r) {
+        return resizeImage(file, 128, 0.7).then(function (t) {
+          pending.photos.push({ name: file.name.replace(/\.[^.]+$/, '') + '.jpg', mime: 'image/jpeg', base64: r.base64, preview: r.dataUrl, thumb: t.dataUrl });
+        });
+      }).catch(function () { toast('Não foi possível ler ' + file.name); });
+    });
+  });
+  chain.then(function () { busy(false); renderPhotoGrid(); });
+});
+
+function readBase64(file) {
+  return new Promise(function (res, rej) { var r = new FileReader(); r.onload = function () { res(String(r.result).split(',')[1]); }; r.onerror = rej; r.readAsDataURL(file); });
+}
+function resizeImage(file, maxSide, quality) {
+  return new Promise(function (resolve, reject) {
+    var url = URL.createObjectURL(file);
+    var img = new Image();
+    img.onload = function () {
+      var w = img.naturalWidth, h = img.naturalHeight, s = Math.min(1, maxSide / Math.max(w, h));
+      var c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      var dataUrl = c.toDataURL('image/jpeg', quality);
+      resolve({ dataUrl: dataUrl, base64: dataUrl.split(',')[1] });
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); reject(new Error('imagem inválida')); };
+    img.src = url;
+  });
+}
+
+$('#form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var f = e.target;
+  var it = state.editing ? state.editing : { id: uid(), photos: [] };
+  ['name', 'details', 'brand', 'model', 'serial', 'purchaseDate', 'store'].forEach(function (k) { it[k] = f.elements[k].value.trim(); });
+  it.room = selValue(f, 'room');
+  it.category = selValue(f, 'category');
+  it.price = f.elements.price.value === '' ? '' : Number(f.elements.price.value);
+  it.warrantyMonths = f.elements.warrantyMonths.value === '' ? '' : Number(f.elements.warrantyMonths.value);
+  it.photos = (it.photos || []).filter(function (p) { return pending.removedPhotos.indexOf(p.id) < 0; });
+  if (pending.removeInvoice) it.invoice = null;
+  var toTrash = pending.removedPhotos.slice();
+  if (pending.removeInvoice && state.editing && state.editing.invoice) toTrash.push(state.editing.invoice.id);
+
+  $('#save-btn').disabled = true;
+  var uploads = pending.photos.map(function (p) { return { kind: 'photo', itemId: it.id, name: p.name, mime: p.mime, base64: p.base64 }; });
+  if (pending.invoice) uploads.push({ kind: 'invoice', itemId: it.id, name: pending.invoice.name, mime: pending.invoice.mime, base64: pending.invoice.base64 });
+  var chain = Promise.resolve();
+  if (uploads.length) {
+    chain = chain.then(function () {
+      busy(uploads.length === 1 ? 'A enviar ficheiro…' : 'A enviar ' + uploads.length + ' ficheiros…');
+      return api('uploadFiles', uploads).then(function (results) {
+        results.forEach(function (r, i) {
+          var u = uploads[i];
+          if (u.kind === 'invoice') { it.invoice = { id: r.id, name: r.name, mime: r.mime }; return; }
+          it.photos.push({ id: r.id, name: r.name });
+          state.fileCache[r.id] = pending.photos[i].preview;
+          if (!it.thumb || it.photos.length === 1) it.thumb = pending.photos[i].thumb;
+        });
+      });
+    });
+  }
+  chain = chain.then(function () {
+    if (!it.photos.length) it.thumb = '';
+    else if (pending.removedPhotos.length && !pending.photos.length) {
+      // capa removida: usa a primeira foto que ficou (thumb gerado a partir da cache, se existir)
+      var first = state.fileCache[it.photos[0].id];
+      if (first) return dataUrlToThumb(first).then(function (t) { it.thumb = t; });
+      it.thumb = it.thumb || '';
+    }
+  }).then(function () {
+    busy('A guardar…');
+    return api('saveItem', it);
+  }).then(function (r) {
+    state.data.rooms = r.rooms; state.data.categories = r.categories; state.data.updatedAt = r.updatedAt;
+    var idx = state.data.items.findIndex(function (x) { return x.id === it.id; });
+    if (idx >= 0) state.data.items[idx] = it; else state.data.items.push(it);
+    toTrash.forEach(function (id) { api('deleteFile', id).catch(function () {}); });
+    cacheLocal();
+    busy(false); $('#save-btn').disabled = false;
+    toast('Guardado na Drive');
+    renderList();
+    openItem(it.id);
+  }).catch(function (err) {
+    busy(false); $('#save-btn').disabled = false;
+    toast('Erro ao guardar: ' + errMsg(err));
+  });
+});
+
+function dataUrlToThumb(dataUrl) {
+  return new Promise(function (resolve) {
+    var img = new Image();
+    img.onload = function () {
+      var s = Math.min(1, 128 / Math.max(img.width, img.height));
+      var c = document.createElement('canvas'); c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      resolve(c.toDataURL('image/jpeg', 0.7));
+    };
+    img.onerror = function () { resolve(''); };
+    img.src = dataUrl;
+  });
+}
+
+$('#delete-btn').addEventListener('click', function () {
+  var it = state.editing; if (!it) return;
+  confirmDlg('Apagar "' + it.name + '"?', 'O artigo, as fotos e a fatura vão para o lixo da Drive.', 'Apagar').then(function (ok) {
+    if (!ok) return;
+    busy('A apagar…');
+    api('deleteItem', it.id).then(function () {
+      state.data.items = state.data.items.filter(function (x) { return x.id !== it.id; });
+      cacheLocal(); busy(false); toast('Artigo apagado'); state.current = null; renderList(); show('list');
+    }).catch(function (err) { busy(false); toast('Erro: ' + errMsg(err)); });
+  });
+});
+
+/* ═══════════════ Resumo ═══════════════ */
+function renderSummary() {
+  var items = state.data.items;
+  var total = items.reduce(function (s, it) { return s + (Number(it.price) || 0); }, 0);
+  var noInvoice = items.filter(function (it) { return !it.invoice; }).length;
+  var noPhoto = items.filter(function (it) { return !(it.photos && it.photos.length); }).length;
+  function group(key) {
+    var m = {};
+    items.forEach(function (it) { var k = it[key] || 'Sem ' + (key === 'room' ? 'divisão' : 'categoria'); m[k] = m[k] || { n: 0, v: 0 }; m[k].n++; m[k].v += Number(it.price) || 0; });
+    var arr = Object.keys(m).map(function (k) { return { k: k, n: m[k].n, v: m[k].v }; }).sort(function (a, b) { return b.v - a.v; });
+    var max = arr.reduce(function (x, r) { return Math.max(x, r.v); }, 0) || 1;
+    return arr.map(function (r) { return '<div class="barrow"><span class="n">' + esc(r.k) + ' <span class="c">· ' + r.n + '</span></span><span class="v">' + money(r.v) + '</span><div class="track"><i style="width:' + (100 * r.v / max) + '%"></i></div></div>'; }).join('') || '<p class="note">Sem artigos.</p>';
+  }
+  var warn = items.map(function (it) { return { it: it, w: warrantyInfo(it) }; }).filter(function (x) { return x.w.days != null && x.w.days >= 0 && x.w.days <= 90; }).sort(function (a, b) { return a.w.days - b.w.days; });
+  $('#summary-body').innerHTML =
+    '<div class="stats"><div class="stat"><div class="lbl">Valor total</div><div class="val">' + money(total) + '</div></div>' +
+    '<div class="stat"><div class="lbl">Artigos</div><div class="val">' + items.length + '</div></div>' +
+    '<div class="stat"><div class="lbl">Sem fatura</div><div class="val">' + noInvoice + '</div></div>' +
+    '<div class="stat"><div class="lbl">Sem fotos</div><div class="val">' + noPhoto + '</div></div></div>' +
+    '<h3>Por divisão</h3><div class="section">' + group('room') + '</div>' +
+    '<h3>Por categoria</h3><div class="section">' + group('category') + '</div>' +
+    '<h3>Garantias a terminar (90 dias)</h3><div class="section">' + (warn.length ? warn.map(function (x) {
+      return '<div class="kv"><span class="k" style="color:var(--text)">' + esc(x.it.name) + '</span><span class="v"><span class="badge ' + x.w.cls + '">' + esc(x.w.label) + '</span></span></div>';
+    }).join('') : '<p class="note">Nenhuma garantia a terminar nos próximos 90 dias.</p>') + '</div>';
+}
+
+/* ═══════════════ Definições ═══════════════ */
+function renderSettings() {
+  var d = state.data;
+  function listEditor(id, list) {
+    return '<div class="section" id="' + id + '">' + list.map(function (v, i) {
+      return '<div class="list-edit"><input value="' + esc(v) + '" data-i="' + i + '" data-orig="' + esc(v) + '"><button type="button" class="rm" data-i="' + i + '" aria-label="Remover">×</button></div>';
+    }).join('') + '<div class="list-edit"><input placeholder="+ adicionar" data-new></div></div>';
+  }
+  $('#settings-body').innerHTML =
+    '<h3>Divisões</h3>' + listEditor('ed-rooms', d.rooms) +
+    '<h3>Categorias</h3>' + listEditor('ed-cats', d.categories) +
+    '<div class="field"><button class="btn primary block" id="lists-save">Guardar listas</button></div>' +
+    '<h3>Dados</h3><div class="section">' +
+    '<div class="kv"><span class="k">Pasta na Drive</span><span class="v"><a class="link" target="_blank" rel="noopener" href="' + esc(d.folderUrl || '#') + '">Abrir pasta</a></span></div>' +
+    '<div class="kv"><span class="k">Última alteração</span><span class="v">' + esc(d.updatedAt ? new Date(d.updatedAt).toLocaleString('pt-PT') : '—') + '</span></div>' +
+    '<div class="kv"><span class="k">Exportar</span><span class="v"><button class="btn" id="csv-btn" style="padding:8px 12px">Criar CSV na Drive</button></span></div>' +
+    '<div class="kv"><span class="k">Ligação ao script</span><span class="v"><button class="btn" id="cfg-btn" style="padding:8px 12px">Alterar</button></span></div></div>' +
+    '<p class="note">Tudo fica na pasta <strong>Inventário Casa</strong> da tua Google Drive: o ficheiro <code>inventario.json</code> com os artigos, as pastas <code>Fotos</code> e <code>Faturas</code>, e em <code>Backups</code> uma cópia diária dos dados (últimas 30). Como está na Drive, não precisas de fazer backup à parte.</p>';
+
+  $$('.rm', $('#settings-body')).forEach(function (b) { b.onclick = function () { b.parentElement.remove(); }; });
+  $('#lists-save').onclick = function () {
+    function collect(id, kind) {
+      var vals = [], renames = [];
+      $$('input', $('#' + id)).forEach(function (inp) {
+        var v = inp.value.trim(); if (!v) return;
+        if (inp.hasAttribute('data-orig') && inp.dataset.orig !== v) renames.push({ kind: kind, from: inp.dataset.orig, to: v });
+        vals.push(v);
+      });
+      return { vals: vals, renames: renames };
+    }
+    var r = collect('ed-rooms', 'room'), c = collect('ed-cats', 'category');
+    busy('A guardar…');
+    api('saveLists', { rooms: r.vals, categories: c.vals, renames: r.renames.concat(c.renames) }).then(function (res) {
+      state.data.rooms = res.rooms; state.data.categories = res.categories; state.data.updatedAt = res.updatedAt;
+      r.renames.concat(c.renames).forEach(function (rn) { state.data.items.forEach(function (it) { if (it[rn.kind] === rn.from) it[rn.kind] = rn.to; }); });
+      if (state.data.rooms.indexOf(state.filterRoom) < 0) state.filterRoom = '';
+      if (state.data.categories.indexOf(state.filterCat) < 0) state.filterCat = '';
+      cacheLocal(); busy(false); toast('Listas guardadas'); renderSettings(); renderList();
+    }).catch(function (err) { busy(false); toast('Erro: ' + errMsg(err)); });
+  };
+  $('#cfg-btn').onclick = function () { openSetup(true); };
+  $('#csv-btn').onclick = function () {
+    busy('A criar CSV…');
+    api('exportCsv').then(function (res) {
+      busy(false); toast('inventario.csv criado (' + res.count + ' artigos)');
+      $('#csv-btn').outerHTML = '<a class="link" target="_blank" rel="noopener" href="' + esc(res.url) + '">Abrir inventario.csv</a>';
+    })
+      .catch(function (err) { busy(false); toast('Erro: ' + errMsg(err)); });
+  };
+}
+
+/* ═══════════════ Arranque ═══════════════ */
+function cacheLocal() { try { localStorage.setItem('inv-cache', JSON.stringify(state.data)); } catch (e) {} }
+function applyData(d) { state.data = d; renderList(); if (state.view === 'summary') renderSummary(); if (state.view === 'settings') renderSettings(); }
+
+$('#fab').addEventListener('click', function () { openForm(null); });
+
+/* ── Ligação ao script ── */
+function openSetup(cancelable) {
+  $('#setup-url').value = cfg && cfg.url ? cfg.url : '';
+  $('#setup-token').value = cfg && cfg.token ? cfg.token : '';
+  $('#setup-cancel-wrap').classList.toggle('hidden', !cancelable);
+  show('setup');
+}
+$('#setup-cancel').addEventListener('click', function () { show('settings'); });
+$('#setup-form').addEventListener('submit', function (e) {
+  e.preventDefault();
+  var url = $('#setup-url').value.trim(), token = $('#setup-token').value.trim();
+  if (!/^https:\/\/script\.google\.com\/macros\/s\/.+\/exec$/.test(url)) { toast('O URL deve ser o da aplicação Web, a terminar em /exec.'); return; }
+  var prev = cfg;
+  cfg = { url: url, token: token };
+  $('#setup-btn').disabled = true; busy('A ligar…');
+  api('loadData').then(function (d) {
+    try { localStorage.setItem('inv-cfg', JSON.stringify(cfg)); } catch (e2) {}
+    busy(false); $('#setup-btn').disabled = false;
+    applyData(d); cacheLocal(); toast('Ligado à tua Drive'); show('list');
+  }).catch(function (err) {
+    cfg = prev; busy(false); $('#setup-btn').disabled = false;
+    toast(errMsg(err));
+  });
+});
+
+function loadFromDrive() {
+  api('loadData').then(function (d) { applyData(d); cacheLocal(); })
+    .catch(function (err) {
+      if (!state.data) $('#list').innerHTML = '<div class="empty"><strong>Não foi possível carregar</strong>' + esc(errMsg(err)) + '</div>';
+      else toast('Sem ligação à Drive: a mostrar a última cópia.');
+    });
+}
+
+(function start() {
+  try { var c = localStorage.getItem('inv-cache'); if (c) applyData(JSON.parse(c)); } catch (e) {}
+  if (!cfg || !cfg.url) { openSetup(false); return; }
+  show('list');
+  loadFromDrive();
+  // ao voltar à app depois de algum tempo, atualiza em segundo plano
+  document.addEventListener('visibilitychange', function () { if (!document.hidden && state.view === 'list' && cfg) loadFromDrive(); });
+})();
+</script>
+</body>
+</html>
