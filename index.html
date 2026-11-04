@@ -676,6 +676,10 @@ function renderSummary() {
 }
 
 /* ═══════════════ Definições ═══════════════ */
+function shareLink() {
+  if (!cfg) return '';
+  return location.origin + location.pathname + '#cfg=' + encodeURIComponent(btoa(JSON.stringify({ url: cfg.url, token: cfg.token })));
+}
 function renderSettings() {
   var d = state.data;
   function listEditor(id, list) {
@@ -691,9 +695,12 @@ function renderSettings() {
     '<div class="kv"><span class="k">Pasta na Drive</span><span class="v"><a class="link" target="_blank" rel="noopener" href="' + esc(d.folderUrl || '#') + '">Abrir pasta</a></span></div>' +
     '<div class="kv"><span class="k">Última alteração</span><span class="v">' + esc(d.updatedAt ? new Date(d.updatedAt).toLocaleString('pt-PT') : '—') + '</span></div>' +
     '<div class="kv"><span class="k">Exportar</span><span class="v"><button class="btn" id="csv-btn" style="padding:8px 12px">Criar CSV na Drive</button></span></div>' +
-    '<div class="kv"><span class="k">Ligação ao script</span><span class="v"><button class="btn" id="cfg-btn" style="padding:8px 12px">Alterar</button></span></div>' +
-    '<div class="kv"><span class="k">Outro dispositivo</span><span class="v"><button class="btn" id="share-btn" style="padding:8px 12px">Enviar ligação</button></span></div></div>' +
-    '<p class="note">"Enviar ligação" cria um link que já traz o URL do script e o código de acesso: abre-o no outro telemóvel ou computador e fica logo ligado, sem escrever nada. Guarda-o só para ti (por exemplo numa nota privada), porque quem tiver esse link acede ao inventário.</p>' +
+    '<div class="kv"><span class="k">Ligação ao script</span><span class="v"><button class="btn" id="cfg-btn" style="padding:8px 12px">Alterar</button></span></div></div>' +
+    '<h3>Ligar outro dispositivo</h3><div class="section" id="share-box">' +
+    '<div class="field"><label>Link de ligação (privado)</label><input id="share-link" readonly value="' + esc(shareLink()) + '"></div>' +
+    '<div class="row" style="margin:10px 0 12px"><button type="button" class="btn primary" id="share-copy">Copiar</button>' +
+    (navigator.share ? '<button type="button" class="btn" id="share-native">Partilhar…</button>' : '') + '</div></div>' +
+    '<p class="note">Abre este link no outro telemóvel ou computador e fica logo ligado à tua Drive, sem escrever nada. Guarda-o só para ti (por exemplo numa nota privada), porque quem tiver este link acede ao inventário.</p>' +
     '<p class="note">Tudo fica na pasta <strong>Inventário Casa</strong> da tua Google Drive: o ficheiro <code>inventario.json</code> com os artigos, as pastas <code>Fotos</code> e <code>Faturas</code>, e em <code>Backups</code> uma cópia diária dos dados (últimas 30). Como está na Drive, não precisas de fazer backup à parte.</p>';
 
   $$('.rm', $('#settings-body')).forEach(function (b) { b.onclick = function () { b.parentElement.remove(); }; });
@@ -718,18 +725,8 @@ function renderSettings() {
     }).catch(function (err) { busy(false); toast('Erro: ' + errMsg(err)); });
   };
   $('#cfg-btn').onclick = function () { openSetup(true); };
-  $('#share-btn').onclick = function () {
-    if (!cfg) return;
-    var link = location.origin + location.pathname + '#cfg=' + encodeURIComponent(btoa(JSON.stringify({ url: cfg.url, token: cfg.token })));
-    var box = $('#share-box');
-    if (!box) {
-      box = document.createElement('div'); box.id = 'share-box'; box.className = 'section';
-      $('#share-btn').closest('.section').insertAdjacentElement('afterend', box);
-    }
-    box.innerHTML = '<div class="field"><label>Link de ligação (privado)</label><input id="share-link" readonly></div>' +
-      '<div class="row" style="margin:10px 0 12px"><button type="button" class="btn primary" id="share-copy">Copiar</button>' +
-      (navigator.share ? '<button type="button" class="btn" id="share-native">Partilhar…</button>' : '') + '</div>';
-    var inp = $('#share-link'); inp.value = link;
+  (function () {
+    var link = shareLink(), inp = $('#share-link');
     function copyLink() {
       inp.focus(); inp.select(); inp.setSelectionRange(0, link.length);
       var done = false;
@@ -743,8 +740,7 @@ function renderSettings() {
     if ($('#share-native')) $('#share-native').onclick = function () {
       navigator.share({ title: 'Inventário da casa', text: 'Link de ligação do inventário (privado)', url: link }).catch(function (e) { if (!e || e.name !== 'AbortError') copyLink(); });
     };
-    box.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  };
+  })();
   $('#csv-btn').onclick = function () {
     busy('A criar CSV…');
     api('exportCsv').then(function (res) {
